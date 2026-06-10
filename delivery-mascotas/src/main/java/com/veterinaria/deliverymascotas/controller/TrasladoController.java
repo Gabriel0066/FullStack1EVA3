@@ -6,9 +6,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 import java.util.List;
 
@@ -44,26 +49,39 @@ public class TrasladoController {
 
     //http://localhost:8082/api/v1/traslados
     @GetMapping
-    public ResponseEntity<List<Traslado>> getAllTraslados() {
+    public ResponseEntity<CollectionModel<EntityModel<Traslado>>> getAllTraslados() {
         log.info("Obteniendo todos los traslados");
-        List<Traslado> traslados = trasladoService.findAll();
-        return ResponseEntity.ok(traslados);
+        var traslados = trasladoService.findAll().stream()
+                .map(traslado -> EntityModel.of(traslado,
+                        linkTo(methodOn(TrasladoController.class).getTrasladoById(traslado.getIdTraslado())).withSelfRel(),
+                        linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados")))
+                .toList();
+        var collectionModel = CollectionModel.of(traslados,
+                linkTo(methodOn(TrasladoController.class).getAllTraslados()).withSelfRel());
+        return ResponseEntity.ok(collectionModel);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Traslado> getTrasladoById(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<Traslado>> getTrasladoById(@PathVariable Long id) {
         log.info("Obteniendo traslado con ID: {}", id);
         return trasladoService.findById(id)
+                .map(traslado -> EntityModel.of(traslado,
+                        linkTo(methodOn(TrasladoController.class).getTrasladoById(id)).withSelfRel(),
+                        linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados"),
+                        linkTo(methodOn(TrasladoController.class).deleteTraslado(id)).withRel("delete")))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
     // por  id http://localhost:8082/api/v1/traslados/2
     @PostMapping
-    public ResponseEntity<Traslado> createTraslado(@Valid @RequestBody Traslado traslado) {
+    public ResponseEntity<EntityModel<Traslado>> createTraslado(@Valid @RequestBody Traslado traslado) {
         log.info("Creando nuevo traslado para paciente: {}", traslado.getIdPaciente());
         try {
             Traslado createdTraslado = trasladoService.save(traslado);
-            return ResponseEntity.status(HttpStatus.CREATED).body(createdTraslado);
+            var entityModel = EntityModel.of(createdTraslado,
+                    linkTo(methodOn(TrasladoController.class).getTrasladoById(createdTraslado.getIdTraslado())).withSelfRel(),
+                    linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados"));
+            return ResponseEntity.status(HttpStatus.CREATED).body(entityModel);
         } catch (IllegalArgumentException e) {
             log.error("Error de validación al crear traslado: {}", e.getMessage());
             return ResponseEntity.badRequest().build();
@@ -73,8 +91,8 @@ public class TrasladoController {
     @PostMapping("/migrate")
     public ResponseEntity<String> migrateDatabase() {
         log.info("Ejecutando migraciones Flyway manualmente en delivery-mascotas");
-        int migrations = flyway.migrate();
-        return ResponseEntity.ok("Migraciones ejecutadas: " + migrations);
+        var migrateResult = flyway.migrate();
+        return ResponseEntity.ok("Migraciones ejecutadas: " + migrateResult.migrationsExecuted);
     }
 
     //{
@@ -91,11 +109,14 @@ public class TrasladoController {
 
 
     @PutMapping("/{id}/estado/{nuevoEstado}")
-    public ResponseEntity<Traslado> updateEstado(@PathVariable Long id, @PathVariable String nuevoEstado) {
+    public ResponseEntity<EntityModel<Traslado>> updateEstado(@PathVariable Long id, @PathVariable String nuevoEstado) {
         log.info("Actualizando estado de traslado ID: {}", id);
         try {
             Traslado updatedTraslado = trasladoService.updateEstado(id, nuevoEstado);
-            return ResponseEntity.ok(updatedTraslado);
+            var entityModel = EntityModel.of(updatedTraslado,
+                    linkTo(methodOn(TrasladoController.class).getTrasladoById(id)).withSelfRel(),
+                    linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados"));
+            return ResponseEntity.ok(entityModel);
         } catch (RuntimeException e) {
             log.error("Error al actualizar estado del traslado {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
@@ -116,18 +137,24 @@ public class TrasladoController {
     }
 //cn idTraslado http://localhost:8082/api/v1/traslados/6
     @GetMapping("/estadisticas/estado/{estado}")
-    public ResponseEntity<Long> countByEstado(@PathVariable String estado) {
+    public ResponseEntity<EntityModel<Long>> countByEstado(@PathVariable String estado) {
         log.info("Contando traslados con estado: {}", estado);
         long count = trasladoService.countByEstado(estado);
-        return ResponseEntity.ok(count);
+        var entityModel = EntityModel.of(count,
+                linkTo(methodOn(TrasladoController.class).countByEstado(estado)).withSelfRel(),
+                linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados"));
+        return ResponseEntity.ok(entityModel);
     }
 
     @GetMapping("/estadisticas/trabajador/{idTrabajador}/estado/{estado}")
-    public ResponseEntity<Long> countByTrabajadorAndEstado(@PathVariable Long idTrabajador,
+    public ResponseEntity<EntityModel<Long>> countByTrabajadorAndEstado(@PathVariable Long idTrabajador,
                                                            @PathVariable String estado) {
         log.info("Contando traslados del trabajador {} con estado: {}", idTrabajador, estado);
         long count = trasladoService.countByIdTrabajadorAndEstado(idTrabajador, estado);
-        return ResponseEntity.ok(count);
+        var entityModel = EntityModel.of(count,
+                linkTo(methodOn(TrasladoController.class).countByTrabajadorAndEstado(idTrabajador, estado)).withSelfRel(),
+                linkTo(methodOn(TrasladoController.class).getAllTraslados()).withRel("traslados"));
+        return ResponseEntity.ok(entityModel);
     }
 }
 

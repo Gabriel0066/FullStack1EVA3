@@ -1,205 +1,300 @@
-# Delivery de Mascotas Microservice
+# 🐾 FullStack1EVA3 — Sistema de Gestión Veterinaria (Microservicios)
 
-Microservicio para la gestión de delivery de mascotas de la veterinaria.
+Sistema backend para una clínica veterinaria compuesto por dos microservicios Spring Boot que se comunican entre sí vía **OpenFeign**.
 
-## Descripción
+---
 
-Este microservicio permite gestionar el servicio de delivery para recoger y devolver mascotas (pacientes) a sus hogares, asignando conductores y controlando el estado de cada traslado.
+## 📦 Microservicios
 
-## Tecnologías Utilizadas
+| Microservicio | Puerto | Descripción |
+|---|---|---|
+| **`personal-medico`** | `8081` | Gestión del personal médico (veterinarios, asistentes, recepcionistas, conductores) |
+| **`delivery-mascotas`** | `8082` | Gestión de traslados (recogida y devolución de mascotas a domicilio) |
 
-- **Spring Boot 3.2.0** - Framework principal
-- **Spring Data JPA** - Persistencia de datos
-- **Spring Web** - API REST
-- **Spring Validation** - Validación de datos
-- **Spring Cloud OpenFeign** - Comunicación entre microservicios
-- **Flyway** - Migraciones de base de datos
-- **MySQL** - Base de datos relacional
-- **Maven** - Gestión de dependencias
+**`delivery-mascotas`** consume la API de **`personal-medico`** para validar que un trabajador existe antes de asignarle un traslado.
 
-## Arquitectura
+---
 
-El microservicio sigue el patrón **CSR (Controller-Service-Repository)**:
+## 🛠️ Tecnologías
+
+| Tecnología | Versión |
+|---|---|
+| Java | 17 |
+| Spring Boot | 3.2.0 |
+| Spring Cloud OpenFeign | 2023.0.0 |
+| Spring Data JPA / Hibernate | — |
+| Spring Security (HTTP Basic) | — |
+| Spring HATEOAS | — |
+| Flyway | — |
+| MySQL | 8.x |
+| Lombok | 1.18.30 |
+| springdoc-openapi (Swagger) | 2.1.0 |
+| JUnit 5 + Mockito | — |
+| Maven | 3.11.0+ |
+
+---
+
+## 📁 Estructura del Proyecto
 
 ```
-controller/    - Endpoints REST
-service/        - Lógica de negocio
-repository/     - Acceso a datos
-model/          - Entidades JPA
-exception/      - Manejo de excepciones
-config/         - Configuración global
-client/         - Clientes Feign para comunicación
-dto/            - Objetos de transferencia de datos
+FullStack1EVA3/
+├── personal-medico/           # Microservicio 1
+│   ├── pom.xml
+│   └── src/main/java/com/veterinaria/personalmedico/
+│       ├── PersonalMedicoApplication.java
+│       ├── SecurityConfig.java
+│       ├── controller/PersonalController.java
+│       ├── dto/PersonalDTO.java
+│       ├── model/Personal.java
+│       ├── repository/PersonalRepository.java
+│       └── service/PersonalService.java
+├── delivery-mascotas/         # Microservicio 2
+│   ├── pom.xml
+│   └── src/main/java/com/veterinaria/deliverymascotas/
+│       ├── DeliveryMascotasApplication.java
+│       ├── SecurityConfig.java
+│       ├── client/PersonalClient.java         # Feign client
+│       ├── config/FeignClientConfig.java
+│       ├── controller/TrasladoController.java
+│       ├── dto/PersonalDTO.java
+│       ├── model/Traslado.java
+│       ├── repository/TrasladoRepository.java
+│       └── service/TrasladoService.java
+└── README.md
 ```
 
-## Entidades
+---
 
-### Traslado
+## ⚙️ Prerrequisitos
 
-| Campo | Tipo | Descripción |
-|--------|------|-------------|
-| id_traslado | Long | ID único del traslado (PK) |
-| id_paciente | Long | ID del paciente (animal) |
-| id_trabajador | Long | ID del trabajador asignado |
-| direccion_hogar | String(200) | Dirección del hogar del paciente |
-| hora_recogida | Timestamp | Hora programada para la recogida |
-| hora_entrega | Timestamp | Hora real de entrega (opcional) |
-| estado | String(20) | Estado del traslado |
-| fecha_creacion | Timestamp | Fecha de creación |
-| fecha_actualizacion | Timestamp | Fecha de actualización |
+- **Java 17 JDK**
+- **Maven** (o usar `mvnw`)
+- **MySQL Server** corriendo en `localhost:3306`
+- **Lombok** configurado en el IDE
 
-## Estados del Traslado
+---
 
-- **PENDIENTE**: Traslado programado pero no iniciado
-- **EN_PROGRESO**: Conductor en camino o realizando el delivery
-- **COMPLETADO**: Traslado finalizado exitosamente
-- **CANCELADO**: Traslado cancelado
+## 🚀 Ejecución
 
-## API Endpoints
+### 1. Crear las bases de datos
 
-### Traslados
-
-#### Obtener Traslados
-- `GET /api/v1/traslados` - Obtener todos los traslados
-- `GET /api/v1/traslados/{id}` - Obtener traslado por ID
-- `GET /api/v1/traslados/trabajador/{idTrabajador}` - Obtener traslados por trabajador
-- `GET /api/v1/traslados/paciente/{idPaciente}` - Obtener traslados por paciente
-- `GET /api/v1/traslados/estado/{estado}` - Obtener traslados por estado
-- `GET /api/v1/traslados/trabajador/{idTrabajador}/estado/{estado}` - Obtener traslados por trabajador y estado
-
-#### Búsqueda por Fechas
-- `GET /api/v1/traslados/fecha?fechaInicio={inicio}&fechaFin={fin}` - Obtener traslados por rango de fechas
-- `GET /api/v1/traslados/estado/{estado}/fecha?fechaInicio={inicio}&fechaFin={fin}` - Obtener traslados por estado y rango de fechas
-
-#### Crear/Actualizar Traslados
-- `POST /api/v1/traslados` - Crear nuevo traslado
-- `PUT /api/v1/traslados/{id}` - Actualizar traslado existente
-- `PATCH /api/v1/traslados/{id}/estado?nuevoEstado={estado}` - Actualizar estado del traslado
-
-#### Eliminar Traslados
-- `DELETE /api/v1/traslados/{id}` - Eliminar traslado por ID
-
-#### Estadísticas
-- `GET /api/v1/traslados/estadisticas/estado/{estado}` - Contar traslados por estado
-- `GET /api/v1/traslados/estadisticas/trabajador/{idTrabajador}/estado/{estado}` - Contar traslados por trabajador y estado
-
-## Validaciones
-
-- **ID Paciente**: Obligatorio, debe existir
-- **ID Trabajador**: Obligatorio, debe existir en microservicio de personal
-- **Dirección**: Obligatoria, máximo 200 caracteres
-- **Hora Recogida**: Obligatoria, no puede ser anterior a la fecha actual
-- **Estado**: Obligatorio, debe ser uno de los estados válidos
-
-## Configuración
-
-### Base de Datos
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/veterinaria_delivery
-spring.datasource.username=root
-spring.datasource.password=password
-```
-
-### Servidor
-```properties
-server.port=8082
-```
-
-## Ejecución
-
-1. **Crear base de datos**:
 ```sql
+CREATE DATABASE veterinaria_personal;
 CREATE DATABASE veterinaria_delivery;
 ```
 
-2. **Ejecutar aplicación**:
+### 2. Configurar credenciales de MySQL
+
+En ambos `application.properties` (`personal-medico/src/main/resources/` y `delivery-mascotas/src/main/resources/`), ajustar si es necesario:
+
+```properties
+spring.datasource.username=root
+spring.datasource.password=tu_password
+```
+
+### 3. Iniciar los microservicios (dos terminales)
+
+**Terminal 1 — Personal Médico:**
 ```bash
+cd personal-medico
 mvn spring-boot:run
 ```
 
-3. **Acceder a la API**:
-```
-http://localhost:8082/api/v1/traslados
+**Terminal 2 — Delivery Mascotas:**
+```bash
+cd delivery-mascotas
+mvn spring-boot:run
 ```
 
-## Ejemplos de Uso
+> ⚠️ **Importante:** `personal-medico` debe estar corriendo antes que `delivery-mascotas`, ya que este último lo consulta al crear traslados.
 
-### Crear Traslado
-```json
-POST /api/v1/traslados
-{
+### 4. Construir JARs (alternativa)
+
+```bash
+cd personal-medico && mvn clean package -DskipTests
+cd ../delivery-mascotas && mvn clean package -DskipTests
+java -jar personal-medico/target/personal-medico-microservice-1.0.0.jar
+java -jar delivery-mascotas/target/delivery-mascotas-microservice-1.0.0.jar
+```
+
+---
+
+## 🔐 Seguridad
+
+Ambos microservicios usan **HTTP Basic Auth** con credenciales fijas en memoria:
+
+- **Usuario:** `admin`
+- **Contraseña:** `admin123`
+
+Endpoints públicos (sin autenticación):
+- `/actuator/health`, `/actuator/info`
+- `/swagger-ui/**`, `/v3/api-docs/**`
+- `/api/v1/personal/exists/**` (solo en personal-medico)
+
+---
+
+## 📡 API — Personal Médico (`localhost:8081`)
+
+Base URL: `http://localhost:8081/api/v1/personal`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Listar todo el personal |
+| `GET` | `/{id}` | Obtener personal por ID |
+| `POST` | `/` | Crear nuevo personal |
+| `PUT` | `/{id}` | Actualizar personal |
+| `DELETE` | `/{id}` | Eliminar personal |
+| `GET` | `/exists/id/{id}` | Verificar si existe por ID |
+| `GET` | `/exists/rut/{rut}` | Verificar si existe por RUT |
+| `GET` | `/exists/correo/{correo}` | Verificar si existe por correo |
+| `POST` | `/migrate` | Ejecutar migraciones Flyway manualmente |
+
+### Entidad Personal
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| idTrabajador | Long | ID único |
+| rol | String | Rol (veterinario, asistente, etc.) |
+| nombre | String | Nombre |
+| apellido | String | Apellido |
+| rut | String | RUT único (formato XXXXXXX-X) |
+| correo | String | Correo único |
+| telefono | String | Teléfono (8-15 dígitos, + opcional) |
+| direccion | String | Dirección (máx. 200 caracteres) |
+
+---
+
+## 📡 API — Delivery Mascotas (`localhost:8082`)
+
+Base URL: `http://localhost:8082/api/v1/traslados`
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Listar todos los traslados |
+| `GET` | `/{id}` | Obtener traslado por ID |
+| `POST` | `/` | Crear traslado |
+| `PUT` | `/{id}/estado/{nuevoEstado}` | Actualizar estado |
+| `DELETE` | `/{id}` | Eliminar traslado |
+| `GET` | `/estadisticas/estado/{estado}` | Contar por estado |
+| `GET` | `/estadisticas/trabajador/{id}/estado/{estado}` | Contar por trabajador + estado |
+| `POST` | `/migrate` | Ejecutar migraciones Flyway manualmente |
+
+### Estados del Traslado
+
+- `PENDIENTE` — Programado, no iniciado
+- `EN_PROGRESO` — En curso
+- `COMPLETADO` — Finalizado (registra auto. hora de entrega)
+- `CANCELADO` — Cancelado (solo si está en PENDIENTE)
+
+### Entidad Traslado
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| idTraslado | Long | ID único |
+| idPaciente | Long | ID del paciente (mascota) |
+| idTrabajador | Long | ID del trabajador asignado |
+| direccionHogar | String | Dirección de recogida/entrega |
+| horaRecogida | Timestamp | Hora programada |
+| horaEntrega | Timestamp | Hora real de entrega |
+| estado | String | Estado del traslado |
+| fechaCreacion | Timestamp | Fecha de creación |
+
+### Reglas de Negocio
+
+1. El trabajador asignado debe existir en `personal-medico` (validación vía Feign)
+2. La hora de recogida no puede ser anterior a la fecha/hora actual
+3. Al marcar `COMPLETADO` se registra automáticamente la hora de entrega
+4. Solo se pueden cancelar traslados en estado `PENDIENTE`
+
+---
+
+## 📖 Swagger UI
+
+- Personal Médico: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
+- Delivery Mascotas: [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
+
+---
+
+## 🩺 Health Check (Actuator)
+
+- `http://localhost:8081/actuator/health`
+- `http://localhost:8082/actuator/health`
+
+---
+
+## 🧪 Tests
+
+Cada microservicio incluye tests unitarios con **Mockito** para la capa de servicio:
+
+```bash
+cd personal-medico
+mvn test
+
+cd ../delivery-mascotas
+mvn test
+```
+
+- `PersonalServiceTest.java` — 13 casos (CRUD, duplicados, validaciones)
+- `TrasladoServiceTest.java` — 11 casos (CRUD, transiciones de estado, validaciones)
+
+---
+
+## 📝 Ejemplos de Uso
+
+### Crear personal médico
+
+```bash
+curl -u admin:admin123 -X POST http://localhost:8081/api/v1/personal \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rol": "Veterinario",
+    "nombre": "Carlos",
+    "apellido": "Muñoz",
+    "rut": "12345678-9",
+    "correo": "carlos@vet.cl",
+    "telefono": "+56912345678",
+    "direccion": "Av. Siempre Viva 742"
+  }'
+```
+
+### Crear un traslado
+
+```bash
+curl -u admin:admin123 -X POST http://localhost:8082/api/v1/traslados \
+  -H "Content-Type: application/json" \
+  -d '{
     "idPaciente": 1,
     "idTrabajador": 4,
     "direccionHogar": "Calle Las Flores 123, Providencia",
-    "horaRecogida": "2026-05-11T09:00:00",
+    "horaRecogida": "2026-06-10T09:00:00",
     "estado": "PENDIENTE"
-}
+  }'
 ```
 
-### Actualizar Estado
+### Actualizar estado de un traslado
+
 ```bash
-PATCH /api/v1/traslados/1/estado?nuevoEstado=COMPLETADO
+curl -u admin:admin123 -X PUT "http://localhost:8082/api/v1/traslados/1/estado/EN_PROGRESO"
 ```
 
-### Buscar por Rango de Fechas
-```bash
-GET /api/v1/traslados/fecha?fechaInicio=2026-05-10T00:00:00&fechaFin=2026-05-12T23:59:59
-```
+---
 
-## Integración con otros Microservicios
+## 📄 Logs
 
-Este microservicio consume el microservicio de **Personal Médico** a través de OpenFeign:
+Ambos microservicios generan logs a nivel DEBUG en consola y archivo (`logs/application.log`).
 
-```java
-@FeignClient(name = "personal-medico-microservice", url = "http://localhost:8081/api")
-public interface PersonalClient {
-    @GetMapping("/v1/personal/{id}")
-    PersonalDTO getPersonalById(@PathVariable("id") Long id);
-    
-    @GetMapping("/v1/personal/exists/rut/{rut}")
-    boolean existsByRut(@PathVariable("rut") String rut);
-}
-```
+---
 
-## Reglas de Negocio
+## 🖥️ Requisitos del IDE
 
-1. **Validación de Trabajador**: Antes de asignar un traslado, se valida que el trabajador exista
-2. **Hora de Recogida**: No puede ser anterior a la fecha y hora actual
-3. **Estado Final**: Al marcar como "COMPLETADO", se registra automáticamente la hora de entrega
-4. **Cancelación**: Solo se pueden cancelar traslados en estado "PENDIENTE"
-
-## Logs
-
-La aplicación genera logs estructurados con información detallada de las operaciones:
-- Nivel: DEBUG para desarrollo
-- Formato: Timestamp + Nivel + Mensaje
-- Archivo: logs/application.log
-
-## Manejo de Errores
-
-La API retorna respuestas de error consistentes:
+Si usas VS Code, el archivo `.vscode/settings.json` ya incluye:
 
 ```json
 {
-    "timestamp": "2026-05-10T15:30:00",
-    "status": 404,
-    "error": "Recurso No Encontrado",
-    "message": "Traslado no encontrado con ID: 1",
-    "path": "/api/v1/traslados/1"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.debug.settings.onBuildFailureProceed": true
 }
 ```
 
-## Métricas
-
-Se exponen métricas a través de Actuator:
-- Health: `/actuator/health`
-- Info: `/actuator/info`
-- Metrics: `/actuator/metrics`
-
-## Flujo de Trabajo Típico
-
-1. **Solicitud**: Se crea un nuevo traslado con estado "PENDIENTE"
-2. **Asignación**: Se asigna un conductor (trabajador) validado
-3. **Ejecución**: Se actualiza estado a "EN_PROGRESO"
-4. **Finalización**: Se actualiza estado a "COMPLETADO" con hora de entrega
-5. **Seguimiento**: Se pueden consultar traslados por trabajador, paciente o estado
+Asegúrate de tener instalada la **extensión de Lombok** en tu IDE.

@@ -18,9 +18,10 @@ public class SecurityConfig {
         http
                 .csrf().disable()
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers("/api/v1/personal/exists/**").permitAll()  // Permite endpoints de validación inter-servicio
-                        .anyRequest().authenticated()
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/api/v1/personal/exists/**").permitAll()  // Permite endpoints de validación inter-servicio
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .anyRequest().authenticated()
                 )
                 .httpBasic();
         return http.build();
